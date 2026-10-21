@@ -370,7 +370,7 @@
     // Estado
     let tracks = [], cur = 0, currentUrl = null, wakeLock = null;
     function storeSafeGet(key) { try { return localStorage.getItem(key) || ''; } catch (e) { return ''; } }
-    let driveAccessToken = null, driveTokenClient = null, driveClientId = storeSafeGet('googleDriveClientId');
+    let driveAccessToken = null, driveTokenClient = null, driveClientId = storeSafeGet('googleDriveClientId'), driveTokenClientId = null;
     let fadeTimer = null, pauseTimer = null;
     let isShuffle = false, isRepeat = false, colorIndex = 0;
     const COLORS = ['#00ff88', '#ff3b30', '#ff9500', '#ffd60a', '#0a84ff', '#bf5af2', '#ff2d92', '#f2f2f5'];
@@ -1110,29 +1110,47 @@
             check();
         });
     }
-    async function connectGoogleDrive() {
+    function ensureTokenClient() {
+        if (driveTokenClient && driveTokenClientId === driveClientId) return true;
+        if (!(window.google && google.accounts && google.accounts.oauth2)) return false;
+        driveTokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: driveClientId, scope: DRIVE_SCOPE,
+            callback: async (response) => {
+                if (response.error || !response.access_token) { showToast('Google no autorizó el acceso a Drive.', '!'); return; }
+                driveAccessToken = response.access_token;
+                closeDriveSetup();
+                $('driveBtn').classList.add('on');
+                $('driveBtn').textContent = '☁ Actualizar Drive';
+                await loadDriveTracks();
+            },
+            error_callback: (err) => {
+                const type = err && err.type ? err.type : 'desconocido';
+                if (type === 'popup_failed_to_open') showToast('El navegador bloqueó la ventana de Google. Permite las ventanas emergentes para esta página y toca otra vez.', '!');
+                else if (type === 'popup_closed') showToast('Cerraste la ventana de Google antes de terminar.', 'i');
+                else showToast('Google devolvió un error (' + type + ').', '!');
+            }
+        });
+        driveTokenClientId = driveClientId;
+        return true;
+    }
+    function connectGoogleDrive() {
         const entered = $('googleClientId').value.trim();
         if (entered) driveClientId = entered;
         if (!driveClientId || !driveClientId.endsWith('.apps.googleusercontent.com')) {
             showToast('Introduce un ID de cliente OAuth válido de Google.', '!'); return;
         }
         try { localStorage.setItem('googleDriveClientId', driveClientId); } catch (e) {}
+        if (!ensureTokenClient()) {
+            showToast('Google todavía está cargando. Espera unos segundos y toca otra vez.', '!'); return;
+        }
+        // La ventana se abre en el mismo toque, sin esperar nada antes
         try {
-            await waitForGoogleIdentity();
-            driveTokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: driveClientId, scope: DRIVE_SCOPE,
-                callback: async (response) => {
-                    if (response.error || !response.access_token) { showToast('Google no autorizó el acceso a Drive.', '!'); return; }
-                    driveAccessToken = response.access_token;
-                    closeDriveSetup();
-                    $('driveBtn').classList.add('on');
-                    $('driveBtn').textContent = '☁ Actualizar Drive';
-                    await loadDriveTracks();
-                }
-            });
             driveTokenClient.requestAccessToken({ prompt: driveAccessToken ? '' : 'consent' });
-        } catch (e) { showToast('No se pudo iniciar Google. Comprueba que la página esté publicada y el ID esté configurado.', '!'); }
+        } catch (e) {
+            showToast('No se pudo abrir Google. Revisa el ID de cliente.', '!');
+        }
     }
+
     async function loadDriveTracks() {
         if (!driveAccessToken) return;
         showToast('Buscando canciones en Google Drive…', '☁');
