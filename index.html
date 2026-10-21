@@ -1003,6 +1003,8 @@
 
     // Integración opcional con Google Drive (requiere configurar un OAuth Client ID propio).
     const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+    // Solo mostrar archivos que estén directamente dentro de la carpeta de música elegida.
+    const DRIVE_MUSIC_FOLDER_ID = '0B_fjnoyvEhIhS0NuLTJxM3liYmc';
     const AUDIO_EXT = /\.(mp3|opus|wav|m4a|mp4|ogg|flac|aac|wma|aiff|mid|midi)$/i;
     function openDriveSetup() {
         $('googleClientId').value = driveClientId || '';
@@ -1052,7 +1054,7 @@
                 const params = new URLSearchParams({
                     pageSize: '1000',
                     fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime)',
-                    q: "trashed = false and mimeType != 'application/vnd.google-apps.folder'",
+                    q: `'${DRIVE_MUSIC_FOLDER_ID}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
                     orderBy: 'name', spaces: 'drive'
                 });
                 if (pageToken) params.set('pageToken', pageToken);
