@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
-    <title>Mauricio Premium · Google Drive</title>
-    <meta name="application-version" content="1.4.0">
+    <title>Mauricio · Reproductor · VERSIÓN 16</title>
+    <meta name="application-version" content="1.3.0">
     <style>
         :root {
             --accent: #00ff88;
@@ -107,15 +107,6 @@
         .timer-choice:active,.modal-cancel:active { transform:scale(.97); }
         .timer-choice span { display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:3px; }
         .modal-cancel { width:100%;margin-top:10px;background:transparent;color:var(--muted); }
-
-
-        .drive-modal { max-height:88vh; overflow-y:auto; }
-        .drive-label { display:block; color:var(--text); font-size:13px; font-weight:700; margin:6px 0; }
-        .drive-input { width:100%; border:1px solid var(--surface2); border-radius:12px; padding:13px 12px; background:var(--bg); color:var(--text); font-size:14px; outline:none; }
-        .drive-input:focus { border-color:var(--accent); }
-        .drive-help { margin-top:12px !important; font-size:12px !important; }
-        .drive-primary { background:var(--accent); color:#07100c; border-color:var(--accent); }
-        #driveBtn.on { color:var(--accent); border-color:var(--accent); }
 
         /* Búsqueda */
         .search { position: relative; margin: 0 16px 10px; flex-shrink: 0; }
@@ -225,6 +216,15 @@
         .transport .ib.play:hover { color: #000; }
         .volume { display: flex; align-items: center; gap: 12px; color: var(--muted); }
         .volume input { flex: 1; }
+    
+        .section-title { font-size:12px; color:var(--muted); margin:14px 6px 4px; }
+        .drive-modal { max-height:88vh; overflow-y:auto; }
+        .drive-label { display:block; color:var(--text); font-size:13px; font-weight:700; margin:6px 0; }
+        .drive-input { width:100%; border:1px solid var(--surface2); border-radius:12px; padding:13px 12px; background:var(--bg); color:var(--text); font-size:14px; outline:none; }
+        .drive-input:focus { border-color:var(--accent); }
+        .drive-help { margin-top:12px !important; font-size:12px !important; }
+        .drive-primary { background:var(--accent); color:#07100c; border-color:var(--accent); }
+        #driveBtn.on { color:var(--accent); border-color:var(--accent); }
     </style>
 </head>
 <body>
@@ -235,7 +235,7 @@
         <div>
             <h1>Mauricio</h1>
             <p id="count">Sin canciones</p>
-            <p class="version">Versión 1.4.0 · Drive</p>
+            <p class="version">VERSIÓN 16 · con Drive</p>
         </div>
     </div>
     <div class="tools">
@@ -254,10 +254,9 @@
     <button id="clearSearch" class="clear-search" type="button" aria-label="Borrar búsqueda" title="Borrar búsqueda"><span aria-hidden="true">✕</span> BORRAR</button>
 </div>
 <div class="list-tools">
-    <button class="small-tool" id="driveBtn" type="button">☁ Conectar Drive</button>
-    <button class="small-tool" id="localBtn" type="button">＋ Música del teléfono</button>
     <button class="small-tool" id="sortBtn" type="button">Orden: carpeta</button>
     <button class="small-tool" id="favoritesBtn" type="button">♡ Favoritos</button>
+    <button class="small-tool" id="driveBtn" type="button">☁ Conectar Drive</button>
     <button class="small-tool" id="timerBtn" type="button">Temporizador</button>
 </div>
 <main class="list" id="list"></main>
@@ -307,19 +306,6 @@
         <input type="range" id="volumeBar" min="0" max="100" value="80">
     </div>
 </section>
-<div class="modal-backdrop" id="driveModal" role="dialog" aria-modal="true" aria-labelledby="driveTitle">
-  <div class="premium-modal drive-modal">
-    <div class="modal-icon">☁</div>
-    <h2 id="driveTitle">Conectar Google Drive</h2>
-    <p>Esta versión necesita un ID de cliente OAuth de Google para acceder de forma privada a tus canciones. No introduzcas tu contraseña aquí.</p>
-    <label for="googleClientId" class="drive-label">ID de cliente OAuth de Google</label>
-    <input id="googleClientId" class="drive-input" type="text" autocomplete="off" placeholder="...apps.googleusercontent.com">
-    <p class="drive-help">Primero hay que habilitar Google Drive API y crear un ID de cliente de tipo Aplicación web en Google Cloud. En “Orígenes autorizados de JavaScript”, añade el origen de tu página publicada en GitHub Pages.</p>
-    <button class="modal-cancel drive-primary" id="saveConnectDrive" type="button">Guardar y conectar</button>
-    <button class="modal-cancel" id="closeDriveModal" type="button">Cerrar</button>
-    <button class="modal-cancel" id="disconnectDrive" type="button">Desconectar y borrar ID guardado</button>
-  </div>
-</div>
 <div class="modal-backdrop" id="timerModal" role="dialog" aria-modal="true" aria-labelledby="timerTitle">
   <div class="premium-modal">
     <div class="modal-icon" data-icon="timer"></div>
@@ -336,6 +322,19 @@
 </div>
 <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
 
+<div class="modal-backdrop" id="driveModal" role="dialog" aria-modal="true" aria-labelledby="driveTitle">
+  <div class="premium-modal drive-modal">
+    <div class="modal-icon">☁</div>
+    <h2 id="driveTitle">Conectar Google Drive</h2>
+    <p>Esta versión necesita un ID de cliente OAuth de Google para acceder de forma privada a tus canciones. No introduzcas tu contraseña aquí.</p>
+    <label for="googleClientId" class="drive-label">ID de cliente OAuth de Google</label>
+    <input id="googleClientId" class="drive-input" type="text" autocomplete="off" placeholder="...apps.googleusercontent.com">
+    <p class="drive-help">Primero hay que habilitar Google Drive API y crear un ID de cliente de tipo Aplicación web en Google Cloud. En “Orígenes autorizados de JavaScript”, añade el origen de tu página publicada en GitHub Pages.</p>
+    <button class="modal-cancel drive-primary" id="saveConnectDrive" type="button">Guardar y conectar</button>
+    <button class="modal-cancel" id="closeDriveModal" type="button">Cerrar</button>
+    <button class="modal-cancel" id="disconnectDrive" type="button">Desconectar y borrar ID guardado</button>
+  </div>
+</div>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
     const $ = (id) => document.getElementById(id);
@@ -370,8 +369,8 @@
 
     // Estado
     let tracks = [], cur = 0, currentUrl = null, wakeLock = null;
-    let driveAccessToken = null, driveTokenClient = null, driveClientId = storeSafeGet('googleDriveClientId');
     function storeSafeGet(key) { try { return localStorage.getItem(key) || ''; } catch (e) { return ''; } }
+    let driveAccessToken = null, driveTokenClient = null, driveClientId = storeSafeGet('googleDriveClientId'), driveTokenClientId = null;
     let fadeTimer = null, pauseTimer = null;
     let isShuffle = false, isRepeat = false, colorIndex = 0;
     const COLORS = ['#00ff88', '#ff3b30', '#ff9500', '#ffd60a', '#0a84ff', '#bf5af2', '#ff2d92', '#f2f2f5'];
@@ -397,6 +396,8 @@
         const n = typeof file === 'string' ? file : file.name;
         return n.replace(/\.[^.]+$/, '');
     }
+
+    function srcLabel(t) { return t && t.source === 'drive' ? 'Google Drive · ' : 'Carpetas del celular · '; }
 
     function fmt(seconds) {
         if (!isFinite(seconds)) return "0:00";
@@ -688,9 +689,11 @@
     }
 
     async function prepareCover(file) {
-        const sourceFile = file && file.blob ? file.blob : file;
-        if (!sourceFile || typeof sourceFile.slice !== 'function') return null;
-        if (!coverUrls.has(file)) coverUrls.set(file, await extractCover(sourceFile));
+        if (!coverUrls.has(file)) {
+            const src = file.source === 'drive' ? file.blob : file;
+            if (!src) return null;
+            coverUrls.set(file, await extractCover(src));
+        }
         return coverUrls.get(file);
     }
 
@@ -701,9 +704,9 @@
         $('full').style.setProperty('--glow', c.glow);
         $('miniTitle').textContent = name;
         $('bigTitle').textContent = name;
-        const trackAtStart = tracks[cur];
-        $('bigSub').textContent = `${trackAtStart.source === 'drive' ? 'Google Drive' : 'Música del teléfono'} · ${cur + 1} de ${tracks.length}`;
+        $('bigSub').textContent = `${srcLabel(tracks[cur])}${cur + 1} de ${tracks.length}`;
         $('mini').classList.remove('hidden');
+        const trackAtStart = tracks[cur];
         prepareCover(trackAtStart).then(url => {
             if (tracks[cur] === trackAtStart && currentUrl && tracks[cur]) {
                 setCoverElement($('miniCover'), name, url, true);
@@ -716,12 +719,13 @@
         const indices = tracks.map((_, i) => i);
         if (sortMode === 'az') indices.sort((a,b) => normalize(displayName(tracks[a])).localeCompare(normalize(displayName(tracks[b])), 'es'));
         if (sortMode === 'za') indices.sort((a,b) => normalize(displayName(tracks[b])).localeCompare(normalize(displayName(tracks[a])), 'es'));
-        return indices;
+        // Drive primero y las del celular después, cada grupo con su orden
+        return [...indices.filter(i => tracks[i].source === 'drive'), ...indices.filter(i => tracks[i].source !== 'drive')];
     }
 
     // La cola de reproducción respeta el filtro de Favoritos y el orden visible.
     function playbackQueue() {
-        return orderedTrackIndices().filter(i => !favoritesOnly || favorites.has(tracks[i].name));
+        return orderedTrackIndices().filter(i => !favoritesOnly || favorites.has(favKey(tracks[i])));
     }
 
     function showToast(message, symbol='✓') {
@@ -739,13 +743,21 @@
         $('clearSearch').classList.toggle('visible', !!$('search').value);
         const ordered = orderedTrackIndices().map(i => ({file: tracks[i], i}));
         const frag = document.createDocumentFragment();
-        let count = 0;
+        let count = 0, lastSection = '';
 
         ordered.forEach(({file:t, i}) => {
             const label = displayName(t);
-            const key = t.name;
+            const key = favKey(t);
             const searchable = normalize([label, t.name, t.artist || '', t.album || ''].join(' '));
             if ((q && !searchable.includes(q)) || (favoritesOnly && !favorites.has(key))) return;
+            const section = t.source === 'drive' ? 'Google Drive' : 'Carpetas del celular';
+            if (section !== lastSection) {
+                const title = document.createElement('div');
+                title.className = 'section-title';
+                title.textContent = section;
+                frag.appendChild(title);
+                lastSection = section;
+            }
             count++;
             const row = document.createElement('div');
             row.className = 'row';
@@ -762,7 +774,7 @@
             d.className = 'empty';
             d.innerHTML = tracks.length
                 ? '<b>Sin resultados</b>Prueba con otro nombre.'
-                : '<b>Sin canciones</b>Conecta Google Drive o toca “Música del teléfono”.';
+                : '<b>Sin canciones</b>Toca el ícono de carpeta para cargar tu música.';
             frag.appendChild(d);
         }
 
@@ -805,53 +817,52 @@
         clearTimeout(fadeTimer);
         clearTimeout(pauseTimer);
         pauseTimer = null;
+
         fadeTo(0, 150);
 
+        const target = tracks[i];
         fadeTimer = setTimeout(async () => {
             audio.pause();
             if (currentUrl) URL.revokeObjectURL(currentUrl);
             currentUrl = null;
-            cur = i;
-            const track = tracks[i];
-            try {
-                let playableFile = track;
-                if (track.source === 'drive') {
-                    if (!driveAccessToken) {
-                        showToast('Conecta Google Drive otra vez para reproducir esta canción.', '☁');
-                        $('driveModal').classList.add('open');
-                        return;
-                    }
-                    if (!track.blob) {
-                        showToast('Descargando temporalmente la canción desde Drive…', '☁');
-                        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
-                        if (!response.ok) throw new Error(response.status === 401 ? 'token' : 'download');
-                        track.blob = await response.blob();
-                    }
-                    playableFile = track.blob;
-                }
-                currentUrl = URL.createObjectURL(playableFile);
-                audio.src = currentUrl;
-                const name = displayName(track);
-                setNowPlaying(name);
-                updateMetadata(name);
-                $('progressFill').style.width = '0%';
-                $('miniFill').style.width = '0%';
-                $('currentTime').textContent = '0:00';
-                $('durationTime').textContent = '0:00';
-                updateRows();
-                const row = document.querySelector(`.row[data-i="${i}"]`);
-                if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                await audio.play();
-                fadeTo(currentVolume(), 250);
-            } catch (err) {
-                if (err && err.message === 'token') {
-                    driveAccessToken = null;
-                    showToast('La autorización de Drive venció. Vuelve a conectar Google Drive.', '!');
+            if (target.source === 'drive' && !target.blob) {
+                if (!driveAccessToken) {
+                    showToast('Conecta Google Drive otra vez para reproducir esta canción.', '☁');
                     $('driveModal').classList.add('open');
-                } else {
-                    showToast('No se pudo abrir esta canción. Comprueba tu conexión y el acceso a Drive.', '!');
+                    return;
                 }
+                showToast('Descargando temporalmente la canción desde Drive…', '☁');
+                try {
+                    target.blob = await downloadDrive(target);
+                } catch (err) {
+                    if (err && err.message === 'token') {
+                        driveAccessToken = null;
+                        showToast('La autorización de Drive venció. Vuelve a conectar Google Drive.', '!');
+                        $('driveModal').classList.add('open');
+                    } else {
+                        showToast('No se pudo abrir esta canción. Comprueba tu conexión y el acceso a Drive.', '!');
+                    }
+                    return;
+                }
+                if (tracks[i] !== target) return;
             }
+            currentUrl = URL.createObjectURL(target.source === 'drive' ? target.blob : target);
+            audio.src = currentUrl;
+            cur = i;
+
+            const name = displayName(tracks[i]);
+            setNowPlaying(name);
+            updateMetadata(name);
+            $('progressFill').style.width = '0%';
+            $('miniFill').style.width = '0%';
+            $('currentTime').textContent = '0:00';
+            $('durationTime').textContent = '0:00';
+            updateRows();
+
+            const row = document.querySelector(`.row[data-i="${i}"]`);
+            if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            audio.play().then(() => fadeTo(currentVolume(), 250)).catch(() => {});
         }, 160);
     }
 
@@ -927,10 +938,13 @@
         } catch (e) { $('full').classList.add('open'); showToast('Pantalla completa no disponible en este navegador.', 'i'); }
     }
 
+    function favKey(t) { return t.source === 'drive' ? 'drive:' + t.id : 'local:' + t.name + ':' + t.size; }
+
     function toggleFavorite(file) {
-        if (favorites.has(file.name)) favorites.delete(file.name); else favorites.add(file.name);
+        const key = favKey(file);
+        if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
         store.set('favorites', JSON.stringify([...favorites])); renderList();
-        showToast(favorites.has(file.name) ? 'Añadida a Favoritos' : 'Quitada de Favoritos', favorites.has(file.name) ? '♥' : '♡');
+        showToast(favorites.has(key) ? 'Añadida a Favoritos' : 'Quitada de Favoritos', favorites.has(key) ? '♥' : '♡');
     }
 
     function setSleepTimer() {
@@ -946,7 +960,6 @@
         clearInterval(sleepTick);
         sleepTick = setInterval(updateTimerLabel, 1000);
         closeTimerModal();
-        showToast(`Temporizador activado: ${mins} minutos.`, '◷');
         sleepTimer = setTimeout(() => {
             audio.pause();
             if (gainNode && audioContext) fadeTo(0, 250);
@@ -966,9 +979,10 @@
     async function compartir() {
         if (tracks.length === 0) return;
         const file = tracks[cur];
-        if (file.source === 'drive' && !file.blob) { showToast('Primero reproduce la canción de Drive para cargarla temporalmente.', 'i'); return; }
         try {
-            const fileToShare = new File([file.source === 'drive' ? file.blob : file], file.name, { type: file.type });
+            const src = file.source === 'drive' ? file.blob : file;
+            if (!src) { showToast('Primero reproduce la canción de Drive para compartirla.', 'i'); return; }
+            const fileToShare = new File([src], file.name, { type: src.type || file.type });
             if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
                 await navigator.share({ files: [fileToShare] });
             } else {
@@ -984,22 +998,96 @@
     audio.ontimeupdate = updateProgress;
     audio.onloadedmetadata = updateProgress;
     audio.onerror = () => { if (currentUrl) { $('bigSub').textContent = 'No se pudo reproducir este archivo'; showToast('No se pudo reproducir esta canción. Prueba otro archivo de audio.', '!'); } };
-    audio.oncanplay = () => { const track = tracks[cur]; $('bigSub').textContent = `${track && track.source === 'drive' ? 'Google Drive' : 'Música del teléfono'} · ${cur + 1} de ${tracks.length}`; };
+    audio.oncanplay = () => { const name = displayName(tracks[cur] || ''); $('bigSub').textContent = `${srcLabel(tracks[cur])}${cur + 1} de ${tracks.length}`; };
 
     // Carga de carpeta
     $('f').onchange = (e) => {
-        const files = Array.from(e.target.files).filter(f => /\.(mp3|opus|wav|m4a|mp4|ogg|flac|aac|wma)$/i.test(f.name));
+        const files = Array.from(e.target.files).filter(f => /\.(mp3|opus|wav|m4a|mp4|ogg|flac)$/i.test(f.name));
         e.target.value = '';
         if (files.length > 0) {
             const driveTracks = tracks.filter(t => t.source === 'drive');
             tracks = [...driveTracks, ...files];
-            cur = 0;
+            cur = driveTracks.length;
             $('search').value = '';
             renderList();
-            showToast(`${files.length} canciones locales añadidas.`, '♫');
-            if (tracks.length) play(0);
+            play(cur);
         }
     };
+
+    // Búsqueda
+    $('search').addEventListener('input', renderList);
+    $('clearSearch').addEventListener('click', () => { $('search').value = ''; renderList(); $('search').focus(); showToast('Búsqueda borrada.'); });
+    $('sortBtn').addEventListener('click', () => { sortMode = ({folder:'az',az:'za',za:'folder'})[sortMode]; renderList(); });
+    $('favoritesBtn').addEventListener('click', () => { favoritesOnly = !favoritesOnly; renderList(); });
+    $('timerBtn').addEventListener('click', setSleepTimer);
+    $('timerModal').addEventListener('click', e => { if (e.target === $('timerModal')) closeTimerModal(); });
+    document.querySelectorAll('[data-minutes]').forEach(btn => btn.addEventListener('click', () => startSleepTimer(+btn.dataset.minutes)));
+    $('cancelTimer').addEventListener('click', closeTimerModal);
+    $('stopTimer').addEventListener('click', cancelSleepTimer);
+
+    // Tocar una canción de la lista
+    $('list').addEventListener('click', (e) => {
+        const row = e.target.closest('.row');
+        if (!row) return;
+        if (e.target.closest('.row-fav')) { toggleFavorite(tracks[+row.dataset.i]); return; }
+        play(+row.dataset.i);
+    });
+
+    // Mini reproductor abre la vista completa (menos el botón de play)
+    $('mini').addEventListener('click', (e) => {
+        if (e.target.closest('#miniPlay')) return;
+        openFull();
+    });
+
+    // Deslizar sobre la carátula: a la izquierda siguiente, a la derecha anterior
+    let swipeX = null, swipeY = null;
+    $('bigCover').addEventListener('pointerdown', e => { swipeX = e.clientX; swipeY = e.clientY; });
+    $('bigCover').addEventListener('pointerup', e => {
+        if (swipeX === null) return;
+        const dx = e.clientX - swipeX, dy = e.clientY - swipeY;
+        swipeX = null;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < 0) next(); else prev();
+        }
+    });
+    $('bigCover').addEventListener('pointercancel', () => { swipeX = null; });
+
+    // Barra de progreso y volumen
+    $('progressBar').addEventListener('click', (e) => {
+        if (!audio.duration) return;
+        const rect = $('progressBar').getBoundingClientRect();
+        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+    });
+
+    $('volumeBar').addEventListener('input', () => {
+        if (gainNode) gainNode.gain.value = currentVolume();
+        store.set('vol', $('volumeBar').value);
+    });
+
+    // Teclado: espacio = play/pausa, flechas = avanzar/retroceder 5 s, Escape cierra la vista completa
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeFull(); return; }
+        if (e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') { e.preventDefault(); toggle(); }
+        if (e.code === 'ArrowRight') seek(5);
+        if (e.code === 'ArrowLeft') seek(-5);
+    });
+
+    // Inicio
+    document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); });
+    $('volumeBar').value = store.get('vol', 80);
+    colorIndex = +store.get('color', 0) || 0;
+    if (colorIndex >= COLORS.length) colorIndex = 0;
+    applyColor();
+    setPlayingUI();
+    renderList();
+
+    async function downloadDrive(track) {
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+        if (!response.ok) throw new Error(response.status === 401 ? 'token' : 'download');
+        const blob = await response.blob();
+        return new File([blob], track.name, { type: track.type || blob.type || 'audio/mpeg' });
+    }
 
     // Integración opcional con Google Drive (requiere configurar un OAuth Client ID propio).
     const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
@@ -1071,7 +1159,9 @@
                 const old = previousDrive.get(f.id);
                 return old || { id: f.id, name: f.name, type: f.mimeType || 'audio/mpeg', size: Number(f.size || 0), source: 'drive', blob: null };
             });
+            const playingNow = tracks[cur];
             tracks = [...driveTracks, ...localTracks];
+            cur = Math.max(0, tracks.indexOf(playingNow));
             cur = Math.min(cur, Math.max(0, tracks.length - 1));
             renderList();
             showToast(`Drive conectado: ${audioFiles.length} canciones encontradas.`, '✓');
@@ -1091,74 +1181,6 @@
         $('driveBtn').classList.remove('on'); $('driveBtn').textContent = '☁ Conectar Drive';
         closeDriveSetup(); renderList(); showToast('Drive desconectado. El ID guardado se borró de este navegador.');
     });
-
-    // Búsqueda
-    $('search').addEventListener('input', renderList);
-    $('clearSearch').addEventListener('click', () => { $('search').value = ''; renderList(); $('search').focus(); showToast('Búsqueda borrada.'); });
-    $('sortBtn').addEventListener('click', () => { sortMode = ({folder:'az',az:'za',za:'folder'})[sortMode]; renderList(); });
-    $('favoritesBtn').addEventListener('click', () => { favoritesOnly = !favoritesOnly; renderList(); });
-    $('timerBtn').addEventListener('click', setSleepTimer);
-    $('timerModal').addEventListener('click', e => { if (e.target === $('timerModal')) closeTimerModal(); });
-    document.querySelectorAll('[data-minutes]').forEach(btn => btn.addEventListener('click', () => startSleepTimer(+btn.dataset.minutes)));
-    $('cancelTimer').addEventListener('click', closeTimerModal);
-    $('stopTimer').addEventListener('click', cancelSleepTimer);
-
-    // Tocar una canción de la lista
-    $('list').addEventListener('click', (e) => {
-        const row = e.target.closest('.row');
-        if (!row) return;
-        if (e.target.closest('.row-fav')) { toggleFavorite(tracks[+row.dataset.i]); return; }
-        play(+row.dataset.i);
-    });
-
-    // Mini reproductor abre la vista completa (menos el botón de play)
-    $('mini').addEventListener('click', (e) => {
-        if (e.target.closest('#miniPlay')) return;
-        openFull();
-    });
-
-    // Deslizar sobre la carátula: a la izquierda siguiente, a la derecha anterior
-    let swipeX = null, swipeY = null;
-    $('bigCover').addEventListener('pointerdown', e => { swipeX = e.clientX; swipeY = e.clientY; });
-    $('bigCover').addEventListener('pointerup', e => {
-        if (swipeX === null) return;
-        const dx = e.clientX - swipeX, dy = e.clientY - swipeY;
-        swipeX = null;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-            if (dx < 0) next(); else prev();
-        }
-    });
-    $('bigCover').addEventListener('pointercancel', () => { swipeX = null; });
-
-    // Barra de progreso y volumen
-    $('progressBar').addEventListener('click', (e) => {
-        if (!audio.duration) return;
-        const rect = $('progressBar').getBoundingClientRect();
-        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
-    });
-
-    $('volumeBar').addEventListener('input', () => {
-        if (gainNode) gainNode.gain.value = currentVolume();
-        store.set('vol', $('volumeBar').value);
-    });
-
-    // Teclado: espacio = play/pausa, flechas = avanzar/retroceder 5 s, Escape cierra la vista completa
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { closeFull(); return; }
-        if (e.target.tagName === 'INPUT') return;
-        if (e.code === 'Space') { e.preventDefault(); toggle(); }
-        if (e.code === 'ArrowRight') seek(5);
-        if (e.code === 'ArrowLeft') seek(-5);
-    });
-
-    // Inicio
-    document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); });
-    $('volumeBar').value = store.get('vol', 80);
-    colorIndex = +store.get('color', 0) || 0;
-    if (colorIndex >= COLORS.length) colorIndex = 0;
-    applyColor();
-    setPlayingUI();
-    renderList();
 </script>
 </body>
 </html>
