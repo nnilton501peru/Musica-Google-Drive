@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
     <title>Mauricio · Reproductor</title>
-    <meta name="application-version" content="1.5.0">
+    <meta name="application-version" content="1.6.0">
     <!-- Google APIs -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
@@ -110,6 +111,11 @@
         .timer-choice:active,.modal-cancel:active { transform:scale(.97); }
         .timer-choice span { display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:3px; }
         .modal-cancel { width:100%;margin-top:10px;background:transparent;color:var(--muted); }
+        
+        /* Input para Client ID modal */
+        .client-input { width: 100%; padding: 12px; border: 1px solid var(--surface2); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+        .client-input:focus { border-color: var(--accent); }
+        .modal-save { width: 100%; padding: 12px; background: var(--accent); color: #000; border: none; border-radius: 12px; font-weight: 750; cursor: pointer; }
 
         /* Búsqueda */
         .search { position: relative; margin: 0 16px 10px; flex-shrink: 0; }
@@ -229,13 +235,14 @@
         <div>
             <h1>Mauricio</h1>
             <p id="count">Sin canciones</p>
-            <p class="version">Versión 1.5.0</p>
+            <p class="version">Versión 1.6.0</p>
         </div>
     </div>
     <div class="tools">
         <button class="ib" onclick="changeColor()" title="Cambiar tema de color" aria-label="Cambiar tema de color" data-icon="color"></button>
         <button class="ib" onclick="toggleFull()" title="Pantalla completa" aria-label="Pantalla completa" data-icon="full"></button>
         <button class="ib" onclick="compartir()" title="Compartir canción" data-icon="share"></button>
+        <button class="ib" onclick="openConfigModal()" title="Configurar Client ID de Drive" aria-label="Configurar Client ID" data-icon="settings" style="color:var(--accent)"></button>
         <button class="ib" onclick="connectDrive()" title="Conectar Google Drive" aria-label="Conectar Google Drive" data-icon="cloud" style="color:var(--accent)"></button>
         <label class="ib" for="f" title="Cargar carpeta local" data-icon="folder"></label>
         <input type="file" id="f" webkitdirectory directory multiple accept=".mp3,.opus,.wav,.m4a,.mp4,.ogg,.flac">
@@ -299,6 +306,19 @@
         <input type="range" id="volumeBar" min="0" max="100" value="80">
     </div>
 </section>
+
+<!-- Modal para configurar el Client ID directamente en el navegador -->
+<div class="modal-backdrop" id="configModal" role="dialog" aria-modal="true">
+  <div class="premium-modal">
+    <div class="modal-icon" data-icon="settings"></div>
+    <h2>Configurar Google Drive</h2>
+    <p>Pega aquí tu Client ID de Google Cloud (termina en .apps.googleusercontent.com) una sola vez:</p>
+    <input type="text" id="clientIdInput" class="client-input" placeholder="Ej: 12345678-abc.apps.googleusercontent.com">
+    <button class="modal-save" onclick="saveClientId()">Guardar y Conectar</button>
+    <button class="modal-cancel" onclick="closeConfigModal()">Cancelar</button>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="timerModal" role="dialog" aria-modal="true" aria-labelledby="timerTitle">
   <div class="premium-modal">
     <div class="modal-icon" data-icon="timer"></div>
@@ -325,6 +345,11 @@
     let gapiInited = false;
     let gisInited = false;
 
+    const store = {
+        get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    };
+
     function gapiLoaded() {
         gapi.load('client', initializeGapiClient);
     }
@@ -337,8 +362,16 @@
     }
 
     function gisLoaded() {
+        gisInited = true;
+        const savedClientId = store.get('client_id', '');
+        if (savedClientId) {
+            initTokenClient(savedClientId);
+        }
+    }
+
+    function initTokenClient(clientId) {
         tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: 'TU_CLIENT_ID.apps.googleusercontent.com', // Reemplaza con tu Client ID de Google Cloud
+            client_id: clientId,
             scope: 'https://www.googleapis.com/auth/drive.readonly',
             callback: (resp) => {
                 if (resp.error !== undefined) {
@@ -349,13 +382,42 @@
                 loadDriveFiles();
             }
         });
-        gisInited = true;
+    }
+
+    function openConfigModal() {
+        $('clientIdInput').value = store.get('client_id', '');
+        $('configModal').classList.add('open');
+    }
+
+    function closeConfigModal() {
+        $('configModal').classList.remove('open');
+    }
+
+    function saveClientId() {
+        const val = $('clientIdInput').value.trim();
+        if (!val || !val.includes('.apps.googleusercontent.com')) {
+            showToast('Ingresa un Client ID válido.', '!');
+            return;
+        }
+        store.set('client_id', val);
+        closeConfigModal();
+        initTokenClient(val);
+        showToast('¡Client ID guardado correctamente!', '✓');
     }
 
     function connectDrive() {
+        const savedClientId = store.get('client_id', '');
+        if (!savedClientId) {
+            openConfigModal();
+            showToast('Primero ingresa tu Client ID.', 'i');
+            return;
+        }
         if (!gisInited || !gapiInited) {
             showToast('Google API cargando, espera un momento...', 'i');
             return;
+        }
+        if (!tokenClient) {
+            initTokenClient(savedClientId);
         }
         if (accessToken) {
             loadDriveFiles();
@@ -379,7 +441,6 @@
                 return;
             }
 
-            // Convertir a formato de pistas unificado compatible con Drive
             tracks = files.map(f => ({
                 name: f.name,
                 mimeType: f.mimeType,
@@ -408,6 +469,7 @@
         search:  { d: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>' },
         folder:  { d: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
         cloud:   { d: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>' },
+        settings:{ d: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
         share:   { d: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>' },
         full:    { d: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>' },
         reload:  { d: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>' },
@@ -426,23 +488,17 @@
         return `<svg viewBox="0 0 24 24" width="22" height="22" ${attrs} aria-hidden="true">${it.d}</svg>`;
     }
 
-    // Estado
     let tracks = [], cur = 0, currentUrl = null, wakeLock = null;
     let fadeTimer = null, pauseTimer = null;
     let isShuffle = false, isRepeat = false, colorIndex = 0;
     const COLORS = ['#00ff88', '#ff3b30', '#ff9500', '#ffd60a', '#0a84ff', '#bf5af2', '#ff2d92', '#f2f2f5'];
     
-    const store = {
-        get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
-        set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-    };
-
     let sortMode = 'folder', favoritesOnly = false, sleepTimer = null, toastTimer = null;
     let savedFavorites = [];
     try { savedFavorites = JSON.parse(store.get('favorites', '[]')); } catch (e) { savedFavorites = []; }
     const favorites = new Set(Array.isArray(savedFavorites) ? savedFavorites.filter(x => typeof x === 'string') : []);
     const coverUrls = new Map();
-    const normalize = value => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es').trim();
+    const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
 
     const audio = new Audio();
     let audioContext, gainNode;
@@ -808,7 +864,7 @@
             d.className = 'empty';
             d.innerHTML = tracks.length
                 ? '<b>Sin resultados</b>Prueba con otro nombre.'
-                : '<b>Sin canciones</b>Toca el ícono de carpeta para cargar música local o el botón de Google Drive.';
+                : '<b>Sin canciones</b>Toca el ícono de carpeta para cargar música local o conecta Google Drive.';
             frag.appendChild(d);
         }
 
@@ -1014,7 +1070,6 @@
     audio.onerror = () => { if (currentUrl) { $('bigSub').textContent = 'No se pudo reproducir este archivo'; showToast('No se pudo reproducir este archivo.', '!'); } };
     audio.oncanplay = () => { const name = displayName(tracks[cur] || ''); $('bigSub').textContent = `${cur + 1} de ${tracks.length}`; };
 
-    // Carga de carpeta local del teléfono
     $('f').onchange = (e) => {
         const files = Array.from(e.target.files).filter(f => /\.(mp3|opus|wav|m4a|mp4|ogg|flac)$/i.test(f.name));
         e.target.value = '';
@@ -1091,3 +1146,4 @@
 </script>
 </body>
 </html>
+```
