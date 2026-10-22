@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
     <title>Mauricio · Reproductor</title>
-    <meta name="application-version" content="21">
+    <meta name="application-version" content="22">
     <!-- Google APIs -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
@@ -226,6 +226,18 @@
         .volume input { flex: 1; }
         .block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 22px 10px 8px; font-size: 17px; font-weight: 400; color: #0a84ff; }
         .block-remove { border: 1px solid #6e6e80; background: #1e1e26; color: #c8c8d4; border-radius: 10px; padding: 5px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .meta-title { display:flex; align-items:center; justify-content:center; gap:10px; min-width:0; }
+        .meta-title h2 { min-width:0; }
+        .big-fav { border:0; background:transparent; color:var(--muted); font-size:24px; padding:4px; flex-shrink:0; }
+        .big-fav.on { color:var(--accent); }
+        .timer-manual { display:flex; gap:8px; }
+        .timer-manual input { flex:1; min-width:0; padding:13px; border-radius:13px; border:1px solid var(--surface2); background:var(--surface2); color:var(--text); font-size:18px; }
+        .timer-manual .modal-save { width:auto; padding:0 18px; }
+        .resume { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; margin:6px 0 10px; padding:12px 14px; border-radius:14px; border:1px solid var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface2)); color:var(--text); text-align:left; cursor:pointer; }
+        .resume span { font-size:12px; color:var(--muted); }
+        .resume b { font-size:15px; font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .resume small { font-size:12px; color:var(--muted); }
+        .list-version { text-align:center; margin:22px 0 8px; font-size:12px; }
     </style>
 </head>
 <body>
@@ -236,7 +248,6 @@
         <div>
             <h1>Mauricio</h1>
             <p id="count">Sin canciones</p>
-            <p class="version">Versión 21</p>
         </div>
     </div>
     <div class="tools">
@@ -284,7 +295,7 @@
     </div>
 
     <div class="meta">
-        <h2 id="bigTitle">Reproductor listo</h2>
+        <div class="meta-title"><h2 id="bigTitle">Reproductor listo</h2><button class="big-fav" id="bigFav" type="button" aria-label="Marcar favorito" onclick="toggleCurrentFavorite()">♡</button></div>
         <p id="bigSub">Mauricio Premium</p>
     </div>
 
@@ -325,10 +336,9 @@
     <div class="modal-icon" data-icon="timer"></div>
     <h2 id="timerTitle">Temporizador de sueño</h2>
     <p>La música se pausará automáticamente cuando termine el tiempo elegido.</p>
-    <div class="timer-options">
-      <button class="timer-choice" data-minutes="15">15 min<span>Descanso corto</span></button>
-      <button class="timer-choice" data-minutes="30">30 min<span>Relajarte</span></button>
-      <button class="timer-choice" data-minutes="60">60 min<span>Una hora</span></button>
+    <div class="timer-manual">
+      <input id="timerMinutes" type="number" inputmode="numeric" min="1" max="999" placeholder="Minutos" aria-label="Minutos del temporizador">
+      <button class="modal-save" id="startTimer" type="button">Empezar</button>
     </div>
     <button class="modal-cancel" id="cancelTimer" type="button">Cerrar</button>
     <button class="modal-cancel" id="stopTimer" type="button">Cancelar temporizador activo</button>
@@ -798,6 +808,7 @@
         $('miniTitle').textContent = name;
         $('bigTitle').textContent = name;
         $('bigSub').textContent = `${cur + 1} de ${tracks.length}`;
+        updateBigFav();
         $('mini').classList.remove('hidden');
         const trackAtStart = tracks[cur];
         prepareCover(trackAtStart).then(url => {
@@ -835,6 +846,34 @@
         clearTimeout(toastTimer); toastTimer = setTimeout(() => { host.replaceChildren(); }, 3600);
     }
 
+    let resumeAt = null, lastResumeSave = 0;
+
+    function loadResume() {
+        try { const r = JSON.parse(store.get('resume', 'null')); return r && r.key ? r : null; } catch (e) { return null; }
+    }
+
+    function saveResume(force) {
+        const t = tracks[cur];
+        if (!t || !currentUrl || !audio.duration) return;
+        const now = Date.now();
+        if (!force && now - lastResumeSave < 3000) return;
+        lastResumeSave = now;
+        store.set('resume', JSON.stringify({ key: trackKey(t), name: displayName(t), time: audio.currentTime }));
+    }
+
+    function updateBigFav() {
+        const b = $('bigFav'), t = tracks[cur];
+        if (!b) return;
+        const on = !!(t && currentUrl && favorites.has(trackKey(t)));
+        b.textContent = on ? '♥' : '♡';
+        b.classList.toggle('on', on);
+    }
+
+    function toggleCurrentFavorite() {
+        const t = tracks[cur];
+        if (t && currentUrl) toggleFavorite(t);
+    }
+
     let playSeq = 0, renewResolve = null;
 
     async function driveFetch(id) {
@@ -867,7 +906,7 @@
         $('full').classList.remove('open');
         $('bigTitle').textContent = 'Reproductor listo';
         $('bigSub').textContent = 'Mauricio Premium';
-        releaseWakeLock(); setPlayingUI();
+        releaseWakeLock(); setPlayingUI(); updateBigFav();
     }
 
     function setTracks(next) {
@@ -897,6 +936,22 @@
         const q = normalize($('search').value);
         $('clearSearch').classList.toggle('visible', !!$('search').value);
         const frag = document.createDocumentFragment();
+        const rs = loadResume();
+        const resumeIdx = rs && !q && !favoritesOnly ? tracks.findIndex(t => trackKey(t) === rs.key) : -1;
+        if (resumeIdx >= 0 && !(currentUrl && cur === resumeIdx)) {
+            const card = document.createElement('button');
+            card.className = 'resume';
+            card.type = 'button';
+            card.dataset.i = resumeIdx;
+            const label = document.createElement('span');
+            label.textContent = 'Seguir donde te quedaste';
+            const name = document.createElement('b');
+            name.textContent = displayName(tracks[resumeIdx]);
+            const time = document.createElement('small');
+            time.textContent = fmt(rs.time || 0);
+            card.append(label, name, time);
+            frag.appendChild(card);
+        }
         let count = 0;
         [[true, 'Música de Google Drive'], [false, 'Música del celular']].forEach(([isDrive, title]) => {
             const shown = orderedTrackIndices().filter(i => {
@@ -936,11 +991,17 @@
             frag.appendChild(d);
         }
 
+        const ver = document.createElement('p');
+        ver.className = 'version list-version';
+        ver.textContent = 'Versión 22';
+        frag.appendChild(ver);
+
         $('list').replaceChildren(frag);
         $('count').textContent = tracks.length ? `${tracks.length} canciones` : 'Sin canciones';
         $('sortBtn').textContent = `Orden: ${{folder:'carpeta',az:'A–Z',za:'Z–A'}[sortMode]}`;
         $('favoritesBtn').classList.toggle('on', favoritesOnly);
         $('favoritesBtn').textContent = favoritesOnly ? '♥ Favoritos' : '♡ Favoritos';
+        updateBigFav();
         updateRows();
     }
 
@@ -960,6 +1021,7 @@
         $('miniFill').style.width = p + '%';
         $('currentTime').textContent = fmt(audio.currentTime);
         $('durationTime').textContent = fmt(audio.duration);
+        saveResume();
     }
 
     function seek(delta) {
@@ -983,7 +1045,6 @@
         // Si es de Drive, descargamos el blob primero con fetch y el token Bearer para evitar errores CORS/token expirado
         let playUrl = '';
         if (track.isDrive) {
-            showToast('Cargando archivo de Drive...', '⟳');
             try {
                 const res = await driveFetch(track.id);
                 if (!res.ok) throw new Error('Error al conectar con Drive');
@@ -1148,10 +1209,11 @@
     }
 
     audio.onplay = () => { setPlayingUI(); requestWakeLock(); startViz(); };
-    audio.onpause = () => { setPlayingUI(); releaseWakeLock(); };
+    audio.onpause = () => { setPlayingUI(); releaseWakeLock(); saveResume(true); };
     audio.onended = () => next(true);
+    window.addEventListener('pagehide', () => saveResume(true));
     audio.ontimeupdate = updateProgress;
-    audio.onloadedmetadata = updateProgress;
+    audio.onloadedmetadata = () => { if (resumeAt && tracks[cur] && trackKey(tracks[cur]) === resumeAt.key) audio.currentTime = resumeAt.time; resumeAt = null; updateProgress(); };
     audio.onerror = () => { if (currentUrl) { $('bigSub').textContent = 'No se pudo reproducir este archivo'; showToast('No se pudo reproducir este archivo.', '!'); } };
     audio.oncanplay = () => { const name = displayName(tracks[cur] || ''); $('bigSub').textContent = `${cur + 1} de ${tracks.length}`; };
 
@@ -1172,9 +1234,17 @@
     $('timerModal').addEventListener('click', e => { if (e.target === $('timerModal')) closeTimerModal(); });
     document.querySelectorAll('[data-minutes]').forEach(btn => btn.addEventListener('click', () => startSleepTimer(+btn.dataset.minutes)));
     $('cancelTimer').addEventListener('click', closeTimerModal);
+    $('startTimer').addEventListener('click', () => {
+        const m = Math.floor(+$('timerMinutes').value);
+        if (m >= 1 && m <= 999) startSleepTimer(m);
+        else showToast('Escribe entre 1 y 999 minutos.', '!');
+    });
+    $('timerMinutes').addEventListener('keydown', e => { if (e.key === 'Enter') $('startTimer').click(); });
     $('stopTimer').addEventListener('click', cancelSleepTimer);
 
     $('list').addEventListener('click', (e) => {
+        const rs = e.target.closest('.resume');
+        if (rs) { resumeAt = loadResume(); play(+rs.dataset.i); return; }
         const rm = e.target.closest('.block-remove');
         if (rm) { removeSource(rm.dataset.drive === '1'); return; }
         const row = e.target.closest('.row');
