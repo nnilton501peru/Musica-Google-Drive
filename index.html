@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
     <title>Mauricio · Reproductor</title>
-    <meta name="application-version" content="1.7.0">
+    <meta name="application-version" content="20">
     <!-- Google APIs -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
@@ -224,6 +224,8 @@
         .transport .ib.play:hover { color: #000; }
         .volume { display: flex; align-items: center; gap: 12px; color: var(--muted); }
         .volume input { flex: 1; }
+        .block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 10px 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+        .block-remove { border: 1px solid #6e6e80; background: #1e1e26; color: #c8c8d4; border-radius: 10px; padding: 5px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -234,7 +236,7 @@
         <div>
             <h1>Mauricio</h1>
             <p id="count">Sin canciones</p>
-            <p class="version">Versión 1.7.0</p>
+            <p class="version">Versión 20</p>
         </div>
     </div>
     <div class="tools">
@@ -374,10 +376,12 @@
             scope: 'https://www.googleapis.com/auth/drive.readonly',
             callback: (resp) => {
                 if (resp.error !== undefined) {
+                    if (renewResolve) { const done = renewResolve; renewResolve = null; done(null); return; }
                     showToast('Error de autenticación con Google', '!');
                     return;
                 }
                 accessToken = resp.access_token;
+                if (renewResolve) { const done = renewResolve; renewResolve = null; done(accessToken); return; }
                 loadDriveFiles();
             }
         });
@@ -438,17 +442,9 @@
                 return;
             }
 
-            tracks = files.map(f => ({
-                id: f.id,
-                name: f.name,
-                mimeType: f.mimeType,
-                isDrive: true
-            }));
-
-            cur = 0;
-            renderList();
-            showToast(`¡${tracks.length} archivos de Drive cargados!`, '✓');
-            if (tracks.length > 0) play(0);
+            const list = files.map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType, isDrive: true }));
+            replaceSource(true, list);
+            showToast(`¡${list.length} archivos de Drive cargados!`, '✓');
         } catch (err) {
             console.error(err);
             showToast('Error al conectar con Google Drive.', '!');
@@ -812,15 +808,21 @@
         });
     }
 
+    function trackKey(t) { return t.isDrive ? 'd:' + t.id : 'l:' + (t.webkitRelativePath || t.name); }
+
     function orderedTrackIndices() {
-        const indices = tracks.map((_, i) => i);
-        if (sortMode === 'az') indices.sort((a,b) => normalize(displayName(tracks[a])).localeCompare(normalize(displayName(tracks[b])), 'es'));
-        if (sortMode === 'za') indices.sort((a,b) => normalize(displayName(tracks[b])).localeCompare(normalize(displayName(tracks[a])), 'es'));
-        return indices;
+        const sortIdx = (idx) => {
+            if (sortMode === 'az') idx.sort((a,b) => normalize(displayName(tracks[a])).localeCompare(normalize(displayName(tracks[b])), 'es'));
+            if (sortMode === 'za') idx.sort((a,b) => normalize(displayName(tracks[b])).localeCompare(normalize(displayName(tracks[a])), 'es'));
+            return idx;
+        };
+        const drive = [], local = [];
+        tracks.forEach((t, i) => (t.isDrive ? drive : local).push(i));
+        return [...sortIdx(drive), ...sortIdx(local)];
     }
 
     function playbackQueue() {
-        return orderedTrackIndices().filter(i => !favoritesOnly || favorites.has(tracks[i].name));
+        return orderedTrackIndices().filter(i => !favoritesOnly || favorites.has(trackKey(tracks[i])));
     }
 
     function showToast(message, symbol='✓') {
@@ -833,27 +835,96 @@
         clearTimeout(toastTimer); toastTimer = setTimeout(() => { host.replaceChildren(); }, 3600);
     }
 
+    let playSeq = 0, renewResolve = null;
+
+    async function driveFetch(id) {
+        const url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media`;
+        let res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        if (res.status === 401 && tokenClient) {
+            const fresh = await new Promise(resolve => {
+                const timer = setTimeout(() => { renewResolve = null; resolve(null); }, 20000);
+                renewResolve = (tok) => { clearTimeout(timer); resolve(tok); };
+                tokenClient.requestAccessToken({ prompt: '' });
+            });
+            if (fresh) res = await fetch(url, { headers: { 'Authorization': `Bearer ${fresh}` } });
+        }
+        return res;
+    }
+
+    function releaseCover(t) {
+        const u = coverUrls.get(t);
+        if (u) URL.revokeObjectURL(u);
+        coverUrls.delete(t);
+    }
+
+    function stopPlayback() {
+        clearTimeout(fadeTimer); clearTimeout(pauseTimer); pauseTimer = null;
+        audio.pause();
+        if (currentUrl && currentUrl.startsWith('blob:')) URL.revokeObjectURL(currentUrl);
+        currentUrl = null;
+        audio.removeAttribute('src'); audio.load();
+        $('mini').classList.add('hidden');
+        $('full').classList.remove('open');
+        $('bigTitle').textContent = 'Reproductor listo';
+        $('bigSub').textContent = 'Mauricio Premium';
+        releaseWakeLock(); setPlayingUI();
+    }
+
+    function setTracks(next) {
+        const current = currentUrl && tracks[cur] ? tracks[cur] : null;
+        tracks.filter(t => !next.includes(t)).forEach(releaseCover);
+        tracks = next;
+        if (current) {
+            const idx = tracks.findIndex(t => trackKey(t) === trackKey(current));
+            if (idx >= 0) cur = idx; else stopPlayback();
+        }
+        renderList();
+    }
+
+    function replaceSource(isDrive, list) {
+        const drive = isDrive ? list : tracks.filter(t => t.isDrive);
+        const local = isDrive ? tracks.filter(t => !t.isDrive) : list;
+        setTracks([...drive, ...local]);
+        if (list.length && !currentUrl) play(tracks.indexOf(list[0]));
+    }
+
+    function removeSource(isDrive) {
+        setTracks(tracks.filter(t => !!t.isDrive !== isDrive));
+        showToast(isDrive ? 'Lista de Drive quitada.' : 'Lista del celular quitada.', '✓');
+    }
+
     function renderList() {
         const q = normalize($('search').value);
         $('clearSearch').classList.toggle('visible', !!$('search').value);
-        const ordered = orderedTrackIndices().map(i => ({file: tracks[i], i}));
         const frag = document.createDocumentFragment();
         let count = 0;
-
-        ordered.forEach(({file:t, i}) => {
-            const label = displayName(t);
-            const key = t.name;
-            const searchable = normalize([label, t.name].join(' '));
-            if ((q && !searchable.includes(q)) || (favoritesOnly && !favorites.has(key))) return;
-            count++;
-            const row = document.createElement('div');
-            row.className = 'row';
-            row.dataset.i = i;
-            row.innerHTML = '<div class="idx"><span class="num"></span><span class="eq"><i></i><i></i><i></i></span></div><div class="name"></div><button class="row-fav" type="button" aria-label="Marcar favorito" title="Favorito">♡</button>';
-            row.querySelector('.num').textContent = i + 1;
-            row.querySelector('.name').textContent = label;
-            const fav = row.querySelector('.row-fav'); fav.textContent = favorites.has(key) ? '♥' : '♡'; fav.classList.toggle('on', favorites.has(key)); fav.setAttribute('aria-pressed', favorites.has(key) ? 'true' : 'false');
-            frag.appendChild(row);
+        [[true, 'Música de Google Drive'], [false, 'Música del celular']].forEach(([isDrive, title]) => {
+            const shown = orderedTrackIndices().filter(i => {
+                const t = tracks[i];
+                const searchable = normalize([displayName(t), t.name].join(' '));
+                return !!t.isDrive === isDrive && (!q || searchable.includes(q)) && (!favoritesOnly || favorites.has(trackKey(t)));
+            });
+            if (!shown.length) return;
+            const head = document.createElement('div');
+            head.className = 'block-head';
+            head.innerHTML = `<span></span><button class="block-remove" type="button" data-drive="${isDrive ? 1 : 0}">Quitar de la lista</button>`;
+            head.firstElementChild.textContent = title;
+            frag.appendChild(head);
+            shown.forEach((i, n) => {
+                const t = tracks[i], isFav = favorites.has(trackKey(t));
+                const row = document.createElement('div');
+                row.className = 'row';
+                row.dataset.i = i;
+                row.innerHTML = '<div class="idx"><span class="num"></span><span class="eq"><i></i><i></i><i></i></span></div><div class="name"></div><button class="row-fav" type="button" aria-label="Marcar favorito" title="Favorito">♡</button>';
+                row.querySelector('.num').textContent = n + 1;
+                row.querySelector('.name').textContent = displayName(t);
+                const fav = row.querySelector('.row-fav');
+                fav.textContent = isFav ? '♥' : '♡';
+                fav.classList.toggle('on', isFav);
+                fav.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+                frag.appendChild(row);
+                count++;
+            });
         });
 
         if (count === 0) {
@@ -907,27 +978,27 @@
         fadeTo(0, 150);
 
         const track = tracks[i];
+        const seq = ++playSeq;
         
         // Si es de Drive, descargamos el blob primero con fetch y el token Bearer para evitar errores CORS/token expirado
         let playUrl = '';
         if (track.isDrive) {
             showToast('Cargando archivo de Drive...', '⟳');
             try {
-                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                const res = await driveFetch(track.id);
                 if (!res.ok) throw new Error('Error al conectar con Drive');
                 const blob = await res.blob();
                 playUrl = URL.createObjectURL(blob);
             } catch (err) {
                 console.error(err);
-                showToast('Error al reproducir archivo de Drive.', '!');
+                showToast('Error al reproducir archivo de Drive. Vuelve a conectar Drive.', '!');
                 return;
             }
         } else {
             playUrl = URL.createObjectURL(track);
         }
 
+        if (seq !== playSeq) { if (playUrl.startsWith('blob:')) URL.revokeObjectURL(playUrl); return; }
         fadeTimer = setTimeout(() => {
             audio.pause();
             if (currentUrl && currentUrl.startsWith('blob:')) URL.revokeObjectURL(currentUrl);
@@ -1023,9 +1094,10 @@
     }
 
     function toggleFavorite(track) {
-        if (favorites.has(track.name)) favorites.delete(track.name); else favorites.add(track.name);
+        const key = trackKey(track);
+        if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
         store.set('favorites', JSON.stringify([...favorites])); renderList();
-        showToast(favorites.has(track.name) ? 'Añadida a Favoritos' : 'Quitada de Favoritos', favorites.has(track.name) ? '♥' : '♡');
+        showToast(favorites.has(key) ? 'Añadida a Favoritos' : 'Quitada de Favoritos', favorites.has(key) ? '♥' : '♡');
     }
 
     function setSleepTimer() {
@@ -1087,11 +1159,7 @@
         const files = Array.from(e.target.files).filter(f => /\.(mp3|opus|wav|m4a|mp4|ogg|flac)$/i.test(f.name));
         e.target.value = '';
         if (files.length > 0) {
-            tracks = files;
-            cur = 0;
-            $('search').value = '';
-            renderList();
-            play(0);
+            replaceSource(false, files);
             showToast(`¡${files.length} canciones locales cargadas!`, '✓');
         }
     };
@@ -1107,6 +1175,8 @@
     $('stopTimer').addEventListener('click', cancelSleepTimer);
 
     $('list').addEventListener('click', (e) => {
+        const rm = e.target.closest('.block-remove');
+        if (rm) { removeSource(rm.dataset.drive === '1'); return; }
         const row = e.target.closest('.row');
         if (!row) return;
         if (e.target.closest('.row-fav')) { toggleFavorite(tracks[+row.dataset.i]); return; }
@@ -1133,8 +1203,14 @@
     $('progressBar').addEventListener('click', (e) => {
         if (!audio.duration) return;
         const rect = $('progressBar').getBoundingClientRect();
-        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        seekSmooth(((e.clientX - rect.left) / rect.width) * audio.duration);
     });
+
+    function seekSmooth(time) {
+        if (!audioContext || audio.paused) { audio.currentTime = time; return; }
+        fadeTo(0, 80);
+        setTimeout(() => { audio.currentTime = time; fadeTo(currentVolume(), 120); }, 90);
+    }
 
     $('volumeBar').addEventListener('input', () => {
         if (gainNode) gainNode.gain.value = currentVolume();
