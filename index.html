@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
     <title>Mauricio · Reproductor</title>
-    <meta name="application-version" content="22">
+    <meta name="application-version" content="23">
     <!-- Google APIs -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
@@ -56,7 +56,7 @@
         }
         h1 { font-size: 17px; font-weight: 700; }
         #count { font-size: 12px; color: var(--muted); margin-top: 2px; }
-        .tools { display: flex; gap: 6px; }
+        .tools { display: flex; gap: 6px; width: 100%; justify-content: space-between; }
 
         /* Botón genérico de íconos */
         .ib {
@@ -233,11 +233,9 @@
         .timer-manual { display:flex; gap:8px; }
         .timer-manual input { flex:1; min-width:0; padding:13px; border-radius:13px; border:1px solid var(--surface2); background:var(--surface2); color:var(--text); font-size:18px; }
         .timer-manual .modal-save { width:auto; padding:0 18px; }
-        .resume { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; margin:6px 0 10px; padding:12px 14px; border-radius:14px; border:1px solid var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface2)); color:var(--text); text-align:left; cursor:pointer; }
-        .resume span { font-size:12px; color:var(--muted); }
-        .resume b { font-size:15px; font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .resume small { font-size:12px; color:var(--muted); }
-        .list-version { text-align:center; margin:22px 0 8px; font-size:12px; }
+        .top { flex-wrap: wrap; row-gap: 12px; }
+        .title-row { display: flex; align-items: baseline; gap: 8px; }
+        .version-top { font-size: 11px; color: var(--muted); white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -246,7 +244,7 @@
     <div class="brand">
         <div class="logo" data-icon="note"></div>
         <div>
-            <h1>Mauricio</h1>
+            <div class="title-row"><h1>Mauricio</h1><span class="version-top">Versión 23</span></div>
             <p id="count">Sin canciones</p>
         </div>
     </div>
@@ -846,22 +844,9 @@
         clearTimeout(toastTimer); toastTimer = setTimeout(() => { host.replaceChildren(); }, 3600);
     }
 
-    let resumeAt = null, lastResumeSave = 0;
+    try { localStorage.removeItem('resume'); } catch (e) {}
 
-    function loadResume() {
-        try { const r = JSON.parse(store.get('resume', 'null')); return r && r.key ? r : null; } catch (e) { return null; }
-    }
-
-    function saveResume(force) {
-        const t = tracks[cur];
-        if (!t || !currentUrl || !audio.duration) return;
-        const now = Date.now();
-        if (!force && now - lastResumeSave < 3000) return;
-        lastResumeSave = now;
-        store.set('resume', JSON.stringify({ key: trackKey(t), name: displayName(t), time: audio.currentTime }));
-    }
-
-    function updateBigFav() {
+        function updateBigFav() {
         const b = $('bigFav'), t = tracks[cur];
         if (!b) return;
         const on = !!(t && currentUrl && favorites.has(trackKey(t)));
@@ -924,7 +909,6 @@
         const drive = isDrive ? list : tracks.filter(t => t.isDrive);
         const local = isDrive ? tracks.filter(t => !t.isDrive) : list;
         setTracks([...drive, ...local]);
-        if (list.length && !currentUrl) play(tracks.indexOf(list[0]));
     }
 
     function removeSource(isDrive) {
@@ -936,22 +920,6 @@
         const q = normalize($('search').value);
         $('clearSearch').classList.toggle('visible', !!$('search').value);
         const frag = document.createDocumentFragment();
-        const rs = loadResume();
-        const resumeIdx = rs && !q && !favoritesOnly ? tracks.findIndex(t => trackKey(t) === rs.key) : -1;
-        if (resumeIdx >= 0 && !(currentUrl && cur === resumeIdx)) {
-            const card = document.createElement('button');
-            card.className = 'resume';
-            card.type = 'button';
-            card.dataset.i = resumeIdx;
-            const label = document.createElement('span');
-            label.textContent = 'Seguir donde te quedaste';
-            const name = document.createElement('b');
-            name.textContent = displayName(tracks[resumeIdx]);
-            const time = document.createElement('small');
-            time.textContent = fmt(rs.time || 0);
-            card.append(label, name, time);
-            frag.appendChild(card);
-        }
         let count = 0;
         [[true, 'Música de Google Drive'], [false, 'Música del celular']].forEach(([isDrive, title]) => {
             const shown = orderedTrackIndices().filter(i => {
@@ -991,11 +959,6 @@
             frag.appendChild(d);
         }
 
-        const ver = document.createElement('p');
-        ver.className = 'version list-version';
-        ver.textContent = 'Versión 22';
-        frag.appendChild(ver);
-
         $('list').replaceChildren(frag);
         $('count').textContent = tracks.length ? `${tracks.length} canciones` : 'Sin canciones';
         $('sortBtn').textContent = `Orden: ${{folder:'carpeta',az:'A–Z',za:'Z–A'}[sortMode]}`;
@@ -1008,11 +971,17 @@
     function openFull() {
         if (!currentUrl) return;
         $('full').classList.add('open');
+        if (!(history.state && history.state.fullPlayer)) history.pushState({ fullPlayer: true }, '');
     }
 
-    function closeFull() {
+    function closeFull(fromBack) {
         $('full').classList.remove('open');
+        if (!fromBack && history.state && history.state.fullPlayer) history.back();
     }
+
+    window.addEventListener('popstate', () => {
+        if ($('full').classList.contains('open')) closeFull(true);
+    });
 
     function updateProgress() {
         if (!audio.duration) return;
@@ -1021,7 +990,6 @@
         $('miniFill').style.width = p + '%';
         $('currentTime').textContent = fmt(audio.currentTime);
         $('durationTime').textContent = fmt(audio.duration);
-        saveResume();
     }
 
     function seek(delta) {
@@ -1209,11 +1177,10 @@
     }
 
     audio.onplay = () => { setPlayingUI(); requestWakeLock(); startViz(); };
-    audio.onpause = () => { setPlayingUI(); releaseWakeLock(); saveResume(true); };
+    audio.onpause = () => { setPlayingUI(); releaseWakeLock(); };
     audio.onended = () => next(true);
-    window.addEventListener('pagehide', () => saveResume(true));
     audio.ontimeupdate = updateProgress;
-    audio.onloadedmetadata = () => { if (resumeAt && tracks[cur] && trackKey(tracks[cur]) === resumeAt.key) audio.currentTime = resumeAt.time; resumeAt = null; updateProgress(); };
+    audio.onloadedmetadata = updateProgress;
     audio.onerror = () => { if (currentUrl) { $('bigSub').textContent = 'No se pudo reproducir este archivo'; showToast('No se pudo reproducir este archivo.', '!'); } };
     audio.oncanplay = () => { const name = displayName(tracks[cur] || ''); $('bigSub').textContent = `${cur + 1} de ${tracks.length}`; };
 
@@ -1243,8 +1210,6 @@
     $('stopTimer').addEventListener('click', cancelSleepTimer);
 
     $('list').addEventListener('click', (e) => {
-        const rs = e.target.closest('.resume');
-        if (rs) { resumeAt = loadResume(); play(+rs.dataset.i); return; }
         const rm = e.target.closest('.block-remove');
         if (rm) { removeSource(rm.dataset.drive === '1'); return; }
         const row = e.target.closest('.row');
