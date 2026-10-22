@@ -418,11 +418,7 @@
         if (!tokenClient) {
             initTokenClient(savedClientId);
         }
-        if (accessToken) {
-            loadDriveFiles();
-        } else {
-            tokenClient.requestAccessToken({ prompt: '' });
-        }
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
     }
 
     async function loadDriveFiles() {
@@ -431,7 +427,9 @@
             const response = await gapi.client.drive.files.list({
                 q: `'${FOLDER_ID}' in parents and (mimeType contains 'audio/' or mimeType contains 'video/') and trashed = false`,
                 pageSize: 1000,
-                fields: 'files(id, name, mimeType)'
+                fields: 'files(id, name, mimeType)',
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true
             });
             
             const files = response.result.files;
@@ -1134,7 +1132,7 @@
 
     $('progressBar').addEventListener('click', (e) => {
         if (!audio.duration) return;
-        const rect = $('progressBar').ClientRect();
+        const rect = $('progressBar').getBoundingClientRect();
         audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
     });
 
