@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0c">
     <title>Mauricio · Reproductor</title>
-    <meta name="application-version" content="24">
+    <meta name="application-version" content="25">
     <!-- Google APIs -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
@@ -249,7 +249,7 @@
     <div class="brand">
         <div class="logo" data-icon="note"></div>
         <div>
-            <div class="title-row"><h1>Mauricio</h1><span class="version-top">Versión 24</span></div>
+            <div class="title-row"><h1>Mauricio</h1><span class="version-top">Versión 25</span></div>
             <p id="count">Sin canciones</p>
         </div>
     </div>
@@ -804,9 +804,17 @@
     }
 
     async function prepareCover(file) {
-        if (file.isDrive) return null;
-        if (!coverUrls.has(file)) coverUrls.set(file, await extractCover(file));
-        return coverUrls.get(file);
+        if (coverUrls.has(file)) return coverUrls.get(file);
+
+        // En Google Drive usamos el mismo archivo descargado para reproducir,
+        // convertido temporalmente en File para leer sus metadatos y carátula.
+        const source = file.isDrive ? file._coverFile : file;
+        if (!source) return null;
+
+        const url = await extractCover(source);
+        coverUrls.set(file, url);
+        if (file.isDrive) delete file._coverFile;
+        return url;
     }
 
     function setNowPlaying(name) {
@@ -1037,6 +1045,11 @@
                 if (!res.ok) throw new Error('Error al conectar con Drive');
                 const blob = await res.blob();
                 playUrl = URL.createObjectURL(blob);
+                // Guardamos temporalmente el contenido para extraer la carátula
+                // incrustada sin hacer una segunda descarga desde Drive.
+                track._coverFile = new File([blob], track.name, {
+                    type: blob.type || track.mimeType || 'application/octet-stream'
+                });
             } catch (err) {
                 console.error(err);
                 showToast('Error al reproducir archivo de Drive. Vuelve a conectar Drive.', '!');
